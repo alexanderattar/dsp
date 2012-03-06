@@ -1,0 +1,43 @@
+Vibrato
+    titleOfAudio = tone.wav
+    bl = 0.0
+    ff = 1.0
+    fb = 0.0 
+    delayTime = 0.0
+    delayDepth = 3.0 
+    noise = 'no'
+    modRate = 2.0
+    outputTitle = "vibrato.wav"
+
+Flanger
+   titleOfAudio = cleanStrumming.wav
+   bl = 0.7
+   ff = 0.7
+   fb = 0.7 
+   delayTime = 0.0
+   delayDepth = 2.0 
+   noise = 'no'
+   modRate = 1.0
+   outputTitle = "flanger.wav"
+
+White Chorus
+   titleOfAudio = bass.wav
+   bl = 0.7
+   ff = 1.0
+   fb = -0.7 
+   delayTime = 15.0
+   delayDepth = 10.0 
+   noise = 'yes'
+   modRate = 0.0
+   outputTitle = "chorus.wav"
+
+Doubling
+   titleOfAudio = loop.wav
+   bl = 0.7
+   ff = 0.7
+   fb = 0.0 
+   delayTime = 100.0
+   delayDepth = 100.0 
+   noise = 'yes'
+   modRate = 0.0
+   outputTitle = "doubling.wav"
