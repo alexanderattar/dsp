@@ -1,6 +1,6 @@
 # Amplitude Follower
 # Author: Alexander Attar
-# NYU - DSP
+# DSP
 # Spring 2012
 
 import math as m # For math functions
