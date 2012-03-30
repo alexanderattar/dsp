@@ -1,7 +1,21 @@
 # Standard Effects Delay Line
 # Author: Alexander Attar
-# NYU - DSP
-# Spring 2012
+# Copyright (C) - Spring 2012
+
+# Effect an audio signal with delayline effects such as Vibrato, Chorus and Flanger. 
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import math as m # For math functions
 from scikits.audiolab import Sndfile, Format # For reading in audio files
@@ -69,14 +83,13 @@ Doubling        0.7     0.7     0       10-100 ms   1-100 ms    Lowpass noise
     
     # Generate lowpass noise
     noise1 = (np.random.random_sample(length))
-    
+    # Apply a butter window function
     b,a = signal.butter(2, .001, btype='low', analog = 0, output = 'ba')
     lp = signal.lfilter(b,a, noise1)
         
     # Begin the delay line function
     def delayLine(bl, ff, fb, delayTime, delayDepth, modRate):
         
-
         # Allocate memory buffers for the output and the modulator
         y = np.zeros((length + DELAY, 1), float)       # for output
         MOD = np.zeros((length + DELAY, 1), float)     # for mod
@@ -122,24 +135,17 @@ Doubling        0.7     0.7     0       10-100 ms   1-100 ms    Lowpass noise
         plot.savefig("test.png")
          
         return y # output the processed audio vector
-    
             
     #----------------------------APPLY DELAY---------------------------------#
-    
     y = delayLine(bl, ff, fb, delayTime, delayDepth, modRate)
-         
-            
     #----------------------------WRITE OUTPUT--------------------------------#
     # Define an output audio format
     formt = Format('wav', 'float64')  
     outFile = Sndfile(outputTitle, 'w', formt, 1, fs)
     outFile.write_frames(y)
-    
     #-----------------------------CLEAN UP-----------------------------------#
-    
     f.close()
     outFile.close()
-        
     #----------------------------END PROGRAM---------------------------------#
     
 if __name__ == '__main__':
