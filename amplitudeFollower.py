@@ -1,29 +1,14 @@
-# Amplitude Follower / Compressor
+# Amplitude Follower
 # Author: Alexander Attar
-# DSP
-# Copyright (C) - Spring 2012
-
-# Follows the envelope of one signal and applies it to another. 
-# 
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# NYU - DSP
+# Spring 2012
 
 import math as m # For math functions
 from scikits.audiolab import Sndfile, Format # For reading in audio files
 import numpy as np  # For putting audio into arrays
-from collections import deque # For moving average function
-import itertools # For moving aveage function
+from collections import deque
 import matplotlib.pyplot as plot # to plot output
+import itertools
 
 def main():
 
@@ -43,12 +28,12 @@ def main():
   
   # TEST PARAMS
   audio1 = "percussion.wav"
-  audio2 = "cleanStrumming.wav"
+  audio2 = "noise.wav"
   threshdB = -20.0
   ratio = 4.0
   at = 5.0
   rt = 1000.0
-  scaler = 400.0
+  scaler = 1.0
   makeUpGaindB = 50.0  
   outputTitle = "example.wav"
   
@@ -77,7 +62,6 @@ def main():
   if f2_channels >= 2: x = (inAudio2[:,0] + inAudio2[:,1]) / 2.0
   else: x = inAudio2
 
-
   # CONVERSIONS
   T = 1.0/f.samplerate                              # period
   at /= 1000.0                                      # attack time in seconds
@@ -101,8 +85,7 @@ def main():
     xc = np.concatenate((xc, padding), axis=0)      # Zero pad 
   
   #----------------------------PROCESS EFFECT---------------------------------#
-  output = process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio,
-                    makeUpGain)
+  output = process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio, makeUpGain)
   #----------------------------NORMALIZE--------------------------------------#
   normalizedOutput = normalize(output)
   #-----------------------------PLOT------------------------------------------#
@@ -115,9 +98,6 @@ def main():
 
 def envelopeFollower(xc, AT, RT, prevG, length, scaler):
   """Follows the amplitude envelope of an audio signal"""
-  
-  g = 0               # for env detector 
-  xSquared = 0
 
   #-------------------------ENVELOPE DETECTOR---------------------------------#
   xSquared = xc * xc
@@ -128,8 +108,9 @@ def envelopeFollower(xc, AT, RT, prevG, length, scaler):
     coeff = AT
   else: 
     coeff = RT
-  g= (xSquared - prevG) * (coeff + prevG)
-  g = xc * scaler
+  g = (xSquared - prevG)*coeff + prevG
+  
+  g = g * scaler
   
   return g
 
@@ -137,29 +118,21 @@ def compress(x, thresh, ratio, AT, RT, TAV, makeUpGain, prevY, length2):
   """Compresses an audio signal if the envelope is above the threshold"""
       
   y = 0                                         # for output
-  xSquared = 0                                  # for rms buffer
+  xSquared = 0.0                                  # for rms buffer
   env = 0.0                                     # initialize envelope 
   slope = 1 - (1 / ratio)
   #-------------------------ENVELOPE DETECTOR---------------------------------#
-  xSquared = x * x - prevY * TAV + prevY        # Squarer envelope detector
+  xSquared = (x*x - prevY)*TAV + prevY        # Squarer envelope detector
   #-----------------------------STATIC CURVE----------------------------------#
-  y = min(1, xSquared) / thresh **2 **(-slope/2)
-  #------------------------------AVERAGER-------------------------------------#
-  # Coefficient is either Attack or Release time 
-  if env < xSquared:
-    coeff = AT
+  if xSquared < 0.000000000000001:
+    y = 1
   else:
-    coeff = RT
-  env *= coeff
-  env += (1.0 - coeff) * xSquared
-  #----------------------------COMPRESSION------------------------------------#
-  over = xSquared - thresh
-  gainReduction = 1
-  if env > thresh:                      # if env is greater than the thresh
-    #print "COMPRESS"
-    gainReduction = over * (ratio - 1)          # apply gain reduction
-  y = (x * gainReduction) * makeUpGain
-  
+    y = min(1, (xSquared/(thresh**2))**(-slope/2))
+    
+  #----------------------------COMPRESSION------------------------------------#  
+  # Lowpass filter
+  y = (y + prevY) / 2
+  y = x * y
   return y
 
 def process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio, 
@@ -176,30 +149,25 @@ def process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio,
   s = np.zeros((length2), float)          # for compressor output
   processed = np.zeros((length2), float)  # for processed output
   
-  # window the input audio 
-  window = [ave for ave in  moving_average(xc)]
-  windowLength = len(window) 
-  
+  windowLength = len(xc) 
   # zero pad
   padding = np.zeros(windowLength - length)
-  window = np.concatenate((window, padding), axis=0) 
-  
-  plotAudio(window, "window")
+  xc = np.concatenate((xc, padding), axis=0) 
   
   
   for i in range(0, length - 1):
     
     #----------------------------ENVELOPE FOLLOWER----------------------------#
     # Store the previous sample
-    prevG = envelopeFollower(window[i], AT, RT, prevG, length, scaler)
-    g[i] = prevG  # Insert processed sample into a vector
-    
+    prevG = envelopeFollower(xc[i], AT, RT, prevG, length, scaler)
+    #TODO-Somewhere the audio is getting scaled to 0. This is a hack fix for now.
+    g[i] = prevG   * 1000.0           # Insert processed sample into a vector
+
   for n in range(0, length2 - 1):
     
     #------------------------------COMPRESSION--------------------------------#
     # Store the previous sample
-    prevY = compress(x[n], thresh, ratio, AT, RT, TAV, makeUpGain, prevY,
-                      length2)
+    prevY = compress(x[n], thresh, ratio, AT, RT, TAV, makeUpGain, prevY, length2)
     y[n] = prevY # Insert processed sample into a vector
     
     # Apply Envelope of Signal1 to Signal2 
@@ -207,12 +175,13 @@ def process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio,
 
   return processed
   
-def moving_average(iterable, n = 10000):
+def moving_average(iterable, n = 2000):
     """
     # moving_average([40, 30, 50, 46, 39, 44]) --> 40.0 42.0 45.0 43.0
     # http://en.wikipedia.org/wiki/Moving_average
     # from http://docs.python.org/library/collections.html#deque-recipes
-    """  
+    """
+        
     it = iter(iterable)
     d = deque(itertools.islice(it, n-1))
     d.appendleft(0)
