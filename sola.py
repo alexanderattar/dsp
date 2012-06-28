@@ -1,4 +1,4 @@
-# SOLA
+# SOLA - Synchronous OverLap Add. Time Stretching
 # Author: Alexander Attar
 # DSP
 # Spring 2012
