@@ -55,7 +55,6 @@ def main():
     print n
     
     if (n == 232):
-      print "BLAH"
       break
     seg1 =  x[n*Sa : n*Sa + N]
     seg2 = x[(n+ 1) *Sa : (n + 1) * Sa + N]
