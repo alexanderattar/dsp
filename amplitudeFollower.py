@@ -12,20 +12,23 @@ import itertools
 
 def main():
 
-  #-------------------PROMPT USER FOR INPUT PARAMETERS---------------------#
-  
+  # =======================================
+  # Prompt user for input parameters
+  # =======================================
+
   # audio1 = raw_input("Enter file name of audio to extract envelope from: ")
   # audio2 = raw_input("Enter file name of audio to apply envelope to: ")
   # threshdB = input("Enter the Threshold in dB: ")
-  # ratio = input("Enter a compression ratio: ") 
-  # at = input("Enter the attack time in ms: ") 
-  # rt = input("Enter the release time in ms: ") 
-  # scaler = input("Enter a scaler for the envelope follower: ") 
-  # makeUpGaindB = input("Enter the makeUpGain in dB: ")    
+  # ratio = input("Enter a compression ratio: ")
+  # at = input("Enter the attack time in ms: ")
+  # rt = input("Enter the release time in ms: ")
+  # scaler = input("Enter a scaler for the envelope follower: ")
+  # makeUpGaindB = input("Enter the makeUpGain in dB: ")
   # outputTitle = raw_input("Give the output file a title: ")
-  
-  #----------------------------READ AUDIO----------------------------------#
-  
+
+  # =======================================
+  # Read audio
+  # =======================================
   # TEST PARAMS
   audio1 = "percussion.wav"
   audio2 = "noise.wav"
@@ -34,9 +37,9 @@ def main():
   at = 5.0
   rt = 1000.0
   scaler = 1.0
-  makeUpGaindB = 50.0  
+  makeUpGaindB = 50.0
   outputTitle = "example.wav"
-  
+
   # Audio Data From Sndfile
   f = Sndfile(audio1)                     # Open File for envFollower
   f2 = Sndfile(audio2)                    # Open File 2 for compressor
@@ -46,55 +49,61 @@ def main():
   f2_channels = f2.channels               # Find Channels of file 2
   length = f.nframes                      # Find File Length
   length2 = f2.nframes                    # Find File2 Length
-  
+
   if fs != fs2:
     print "ERROR: USE FILES WITH SAME SAMPLE RATE"
     print "EXITING"
     return
 
   # Read into a numpy arrays
-  inAudio = f.read_frames(length, dtype=np.float64) 
-  inAudio2 = f2.read_frames(length2, dtype=np.float64) 
+  inAudio = f.read_frames(length, dtype=np.float64)
+  inAudio2 = f2.read_frames(length2, dtype=np.float64)
   # Convert Both Files to Mono if in Stereo
   if f_channels >= 2: xc = (inAudio[:,0] + inAudio[:,1]) / 2.0
   else: xc = inAudio
-  
+
   if f2_channels >= 2: x = (inAudio2[:,0] + inAudio2[:,1]) / 2.0
   else: x = inAudio2
 
-  # CONVERSIONS
+  # Conversions
   T = 1.0/f.samplerate                              # period
   at /= 1000.0                                      # attack time in seconds
   rt /= 1000.0                                      # release time in seconds
   tav = at + rt / 2
   thresh = 10 **(threshdB / 20)                     # convert back to linear
   makeUpGain = 0.01 * (10 **(makeUpGaindB / 20))    # convert back to linear
-  
+
   # attack and release in samples
   AT = 1 - m.exp(-2.2 * T / at);
   RT = 1 - m.exp(-2.2 * T / rt);
   TAV = m.exp = m.exp(-1.0 / (fs * tav));
-    
+
   # If file1 is longer zero pad file2
   if length > length2:
     padding = np.zeros(length - length2)            # padding vector
-    x = np.concatenate((x, padding), axis=0) 
+    x = np.concatenate((x, padding), axis=0)
   # If file2 is longer zero pad file1
   else:
     padding = np.zeros(length2 - length)
-    xc = np.concatenate((xc, padding), axis=0)      # Zero pad 
-  
-  #----------------------------PROCESS EFFECT---------------------------------#
+    xc = np.concatenate((xc, padding), axis=0)      # Zero pad
+
+  # =======================================
+  # Process
+  # =======================================
   output = process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio, makeUpGain)
-  #----------------------------NORMALIZE--------------------------------------#
-  normalizedOutput = normalize(output)
-  #-----------------------------PLOT------------------------------------------#
+
+  # =======================================
+  # Plot output
+  # =======================================
   plotAudio(x, "x")
   plotAudio(xc, "xc")
   plotAudio(output, "output")
-  #----------------------------WRITE OUTPUT-----------------------------------#
+
+  # =======================================
+  # Write the audio
+  # =======================================
   writeAudioOutput(output, fs, f, f2, outputTitle)
-  #----------------------------END MAIN---------------------------------------#
+
 
 def envelopeFollower(xc, AT, RT, prevG, length, scaler):
   """Follows the amplitude envelope of an audio signal"""
@@ -104,22 +113,22 @@ def envelopeFollower(xc, AT, RT, prevG, length, scaler):
   #-----------------------------AR AVERAGER-----------------------------------#
   # if input is less than the previous output use attack
   # else use the release
-  if xSquared < prevG: 
+  if xSquared < prevG:
     coeff = AT
-  else: 
+  else:
     coeff = RT
   g = (xSquared - prevG)*coeff + prevG
-  
+
   g = g * scaler
-  
+
   return g
 
-def compress(x, thresh, ratio, AT, RT, TAV, makeUpGain, prevY, length2): 
+def compress(x, thresh, ratio, AT, RT, TAV, makeUpGain, prevY, length2):
   """Compresses an audio signal if the envelope is above the threshold"""
-      
+
   y = 0                                         # for output
   xSquared = 0.0                                  # for rms buffer
-  env = 0.0                                     # initialize envelope 
+  env = 0.0                                     # initialize envelope
   slope = 1 - (1 / ratio)
   #-------------------------ENVELOPE DETECTOR---------------------------------#
   xSquared = (x*x - prevY)*TAV + prevY        # Squarer envelope detector
@@ -128,35 +137,35 @@ def compress(x, thresh, ratio, AT, RT, TAV, makeUpGain, prevY, length2):
     y = 1
   else:
     y = min(1, (xSquared/(thresh**2))**(-slope/2))
-    
-  #----------------------------COMPRESSION------------------------------------#  
+
+  #----------------------------COMPRESSION------------------------------------#
   # Lowpass filter
   y = (y + prevY) / 2
   y = x * y
   return y
 
-def process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio, 
+def process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio,
             makeUpGain):
-  """ 
-  Processes the audio signals output from the envelope follower 
+  """
+  Processes the audio signals output from the envelope follower
   and the compressor
   """
-  
+
   prevG = 0
   prevY = 0
   g = np.zeros((length), float)           # for envelope follower output
   y = np.zeros((length2), float)          # for compressor output
   s = np.zeros((length2), float)          # for compressor output
   processed = np.zeros((length2), float)  # for processed output
-  
-  windowLength = len(xc) 
+
+  windowLength = len(xc)
   # zero pad
   padding = np.zeros(windowLength - length)
-  xc = np.concatenate((xc, padding), axis=0) 
-  
-  
+  xc = np.concatenate((xc, padding), axis=0)
+
+
   for i in range(0, length - 1):
-    
+
     #----------------------------ENVELOPE FOLLOWER----------------------------#
     # Store the previous sample
     prevG = envelopeFollower(xc[i], AT, RT, prevG, length, scaler)
@@ -164,24 +173,24 @@ def process(xc, x, AT, RT, TAV, length, length2, scaler, thresh, ratio,
     g[i] = prevG   * 1000.0           # Insert processed sample into a vector
 
   for n in range(0, length2 - 1):
-    
+
     #------------------------------COMPRESSION--------------------------------#
     # Store the previous sample
     prevY = compress(x[n], thresh, ratio, AT, RT, TAV, makeUpGain, prevY, length2)
     y[n] = prevY # Insert processed sample into a vector
-    
-    # Apply Envelope of Signal1 to Signal2 
+
+    # Apply Envelope of Signal1 to Signal2
     processed[n] =  g[n % length] * y[n]# loop envelope over signal1
 
   return processed
-  
+
 def moving_average(iterable, n = 2000):
     """
     # moving_average([40, 30, 50, 46, 39, 44]) --> 40.0 42.0 45.0 43.0
     # http://en.wikipedia.org/wiki/Moving_average
     # from http://docs.python.org/library/collections.html#deque-recipes
     """
-        
+
     it = iter(iterable)
     d = deque(itertools.islice(it, n-1))
     d.appendleft(0)
@@ -191,15 +200,15 @@ def moving_average(iterable, n = 2000):
         d.append(elem)
         yield s / float(n)
 
-def normalize(z):            
+def normalize(z):
     """Normalizes an output vector"""
     normalizedOutput = 0
-    maxVal = np.abs(max(z)) 
+    maxVal = np.abs(max(z))
     minVal = np.abs(min(z))
-    normalizedOutput /=  maxVal 
+    normalizedOutput /=  maxVal
     normalizedOutput /=  minVal
     return normalizedOutput
-    
+
 def plotAudio(audioToPlot, title):
   """Plots and audio signal in the time domain"""
   plot.plot(audioToPlot)
@@ -208,11 +217,11 @@ def plotAudio(audioToPlot, title):
   plot.ylabel("Amplitude")
   plot.savefig(title + ".png")
 
-def writeAudioOutput(output, fs, f, f2, outputTitle): 
+def writeAudioOutput(output, fs, f, f2, outputTitle):
   """Writes audio output"""
-  
+
   # Define an output audio format
-  formt = Format('wav', 'float64')  
+  formt = Format('wav', 'float64')
   outFile = Sndfile(outputTitle, 'w', formt, 1, fs)
   outFile.write_frames(output)
 
@@ -220,7 +229,7 @@ def writeAudioOutput(output, fs, f, f2, outputTitle):
   f.close()
   f2.close()
   outFile.close()
-  
+
 
 if __name__ == '__main__':
     main()

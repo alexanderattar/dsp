@@ -5,8 +5,8 @@
 #
 # This script contains a variety of functions for analyzing an audio file.
 # Specifically, it allows for the signal to be analyzed on the bark scale
-# along with a typical spectogram function. 
-# Data visualization is done using the matplotlib library. 
+# along with a typical spectogram function.
+# Data visualization is done using the matplotlib library.
 
 import numpy as np
 import struct
@@ -17,42 +17,41 @@ import matplotlib.pyplot as plt
 eps = 2.0**(-16.0) # Prevents divide by zero error in numpy.log()
 
 def main():
-	
-	#-----------------PROMPT USER FOR INPUT PARAMETERS-------------------#
-  
+
+	# =======================================
+	# Prompt user for input parameters
+	# =======================================
 	# audioInput = raw_input("Enter the title of audio file: ")
 	# winType = raw_input("Select a window type (Hit return for hanning): ")
 	# N = input("Input a window size: ")
 	# x, fs = wavread(audioInput)
-	
+
 	# TEST PARAMS
 	N = 1024
 	winType = "hanning"
 	x,fs = wavread('loop.wav')
-	
+
 	# RUN
 	window = pickWinType(winType, N)
 	hz = spectrogram(x, 1024, fs, 512, winType=None, PLOT=True)
 	# getFreqs(x,fs, N=512)
 	# plotFreqMags(output)
 	freq2bark(hz, PLOT=True)
-	
-	#-----------------------------END MAIN-------------------------------#
-	
+
 def getFreqs(x,fs, N=1028):
-	""" Performs the FFT on a signal and retrieves the magnitudes paired 
+	""" Performs the FFT on a signal and retrieves the magnitudes paired
 			with the center frequency of the frequency bin"""
 
 	x	= convertToMono(x)
 	x = np.transpose(x)
-	
+
 	complexVals = (np.fft.fft(x, axis=0))
 
 	# Initlize Buffers with Zeros
 	magnitude = [0] * (len(complexVals) / 2)
 	freqs = [0] * (len(complexVals) / 2)
 	centerFreqs = [0] * (len(complexVals) / 2)
-	
+
 	# Create dictionary to store bin center freqs and magnitude pairs
 	bins = {}
 
@@ -60,22 +59,22 @@ def getFreqs(x,fs, N=1028):
 	while i < (N / 2 - 1):
 		re = complexVals[2 * i] # real values
 		im = complexVals[2 * i + 1] # imaginary values
-		
-		magnitude[i] = abs((np.sqrt(re*re + im*im))) 
+
+		magnitude[i] = abs((np.sqrt(re*re + im*im)))
 		centerFreqs[i] = i * fs / N
 		# print centerFreqs[i], magnitude[i]
 		bins[centerFreqs[i]] = magnitude[i]
-		# print bins[centerFreqs[i]] 
+		# print bins[centerFreqs[i]]
 		i += 1
-		
+
 	magnitude = np.asarray(magnitude)
 	centerFreqs = np.asarray(centerFreqs)
-	
+
 	return
-		
+
 def spectrogram(x,N,fs,hopsize,winType=None,PLOT=False):
 	""" Spectrum analysis. Higher N increases frequency resolution
-	 		but lowers time resolution. This function also finds 
+	 		but lowers time resolution. This function also finds
 	 		approximate frequency values of a signal after taking the
 			FFT. Returns an array of frequency values in Hz """
 
@@ -86,40 +85,40 @@ def spectrogram(x,N,fs,hopsize,winType=None,PLOT=False):
 		win = np.hanning(N / 2 + 1)
 
 	win *= (1.0 / win.sum()) # Normalize window values
-	
-	pad = np.zeros(N / 2) 
+
+	pad = np.zeros(N / 2)
 	x = np.concatenate([pad, x, pad])
 
 	# Allocate output List
 	output = [] # For the fft values in each window
 	hz = [] # For frequencies in hz
 	peaks = [] # For the magnitude peaks
-	
+
 	n = 0; i = 0
 	block = x[:N]
 	while len(block) == N:
 		output += [np.fft.rfft(block)] # * win # Take the real FFT
 		n += hopsize # Shift by the hopsize
 		block = x[n : n + N] # from the current idx to the idx plus window size
-		
+
 		# Convert each value in the window to approximate frequency in hz
 		while i < len(output):
 			hz += [fs * abs(output[i]) / N]
 			i += 1
-		
+
 		# # Optional Peak Picking
 		# # Find the peak and interpolate to get a more accurate peak
 		# peak = np.argmax(abs(hz))
 		# true_peak = parabolic((abs(hz + eps)), peak)[0]
-		
+
 		# # Convert to estimated frequency and store data in the list
 		# peaks += [fs * true_peak / (N)]
-	
+
 	# Convert from Python List to Numpy Array for Matplotlib
 	output = np.asarray(output)
 	# peaks = np.asarray(peaks)
 	hz = np.asarray(hz)
-	
+
 	if PLOT:
 		fig = plt.figure()
 		cax = plt.imshow(np.log(np.abs(output + eps)).transpose(),
@@ -135,9 +134,9 @@ def spectrogram(x,N,fs,hopsize,winType=None,PLOT=False):
 		plt.show()
 
 	return hz
-	
+
 def plotFreqMags(output):
-	
+
 	fig = plt.figure()
 	ax = fig.gca()
 	ax.set_title("Magnitude\n")
@@ -145,18 +144,18 @@ def plotFreqMags(output):
 	ax.set_ylabel("Frequency")
 	plt.plot(output)
 	plt.show()
-	
+
 def freq2bark(array_of_freqs, PLOT=True):
-	""" The Bark scale ranges from 1 to 24 Barks, corresponding to the first 24 
-	critical bands of hearing. The published Bark band edges are given in 
-	Hertz as [0, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000, 
+	""" The Bark scale ranges from 1 to 24 Barks, corresponding to the first 24
+	critical bands of hearing. The published Bark band edges are given in
+	Hertz as [0, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000,
 	2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500].
-	
+
 	Note that since the Bark scale is defined only up to 15.5 kHz, the highest sampling
-	rate for which the Bark scale is defined up to the Nyquist limit, without requiring 
-	extrapolation, is 31 kHz. 
+	rate for which the Bark scale is defined up to the Nyquist limit, without requiring
+	extrapolation, is 31 kHz.
 	https://ccrma.stanford.edu/~jos/bbt/Bark_Frequency_Scale.html """
-	
+
 	# Formula is from:
 	# M. R. Schroeder, B. S. Atal, and J. L. Hall. Optimizing digital
 	# speech coders by exploiting masking properties of the human ear.
@@ -166,7 +165,7 @@ def freq2bark(array_of_freqs, PLOT=True):
 
 	# Bark values
 	b = 7 * np.log(g / 650 + np.sqrt(1 + (g / 650)**2))
-	
+
 	# Critical bandwidth
 	c = np.cosh(b / 7) * 650 / 7
 
@@ -174,24 +173,25 @@ def freq2bark(array_of_freqs, PLOT=True):
 		fig = plt.figure()
 		ax1 = fig.add_subplot(211)
 		plt.plot(b)
-			
+
 		ax1.set_title("Bark Bands")
 		ax1.set_ylabel("Bark")
-			
-		ax2 = fig.add_subplot(212)	
+
+		ax2 = fig.add_subplot(212)
 		ax2.set_title("Critical Bandwidth")
 		ax2.set_xlabel("Bark\n")
 		ax2.set_ylabel("Critical Bandwidth")
-			
+
 		plt.plot(b, c)
-		
+
 		plt.show()
-	
+
 	return b, c
-	
+
 #-----------------------------Helper Functions------------------------------#
-# Note: wavread and _raw_data helper functions were taken from Eric Humphrey's 
-# Python tutorial given on behalf of MARL, Friday 4/27/2012
+# Note: wavread and _raw_data helper functions were taken from Eric Humphrey's
+# Python tutorial given on behalf of MARL (Music and Auditory Research Lab),
+# Friday 4/27/2012
 
 def wavread(fin):
 	""" Read in an Audio file using the wave library """
@@ -217,7 +217,7 @@ def _rawdata_to_array(data, channels, bytedepth):
 	N = len(data) / float(channels) / float(bytedepth)
 	frame = np.array(struct.unpack('%dh' % N * channels, data)) / (2.0 ** (8 * bytedepth - 1))
 	return frame.reshape([N, channels])
-	
+
 def pickWinType(winType, N):
 	""" Allow the user to pick a window type"""
 	# Select window type
@@ -231,9 +231,9 @@ def pickWinType(winType, N):
 		window = np.hanning(N)
 	else:
 		window = None
-		
+
 		return window
-		
+
 # Source of interpolation function - https://gist.github.com/255291
 def parabolic(f, x):
 	"""Quadratic interpolation for estimating the true position of an
@@ -262,14 +262,14 @@ def convertToMono(x):
 	else:
 		raise ValueError("Input of wrong shape")
 	return x
-	
+
 def decibels(x):
 	""" Return value in decibles """
 	return 20.0 * np.log10(x + eps)
 
 def normalize(x):
 	""" Normailize values between -1 and 1"""
-  return x / np.abs(x).max()
-    
+	return x / np.abs(x).max()
+
 if __name__ == '__main__':
     main()
